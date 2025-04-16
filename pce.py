@@ -5,6 +5,10 @@ from base import Base
 
 
 class MaxCutPCE(Base):
+    # TODO:
+    #   -introduce regularization term in the objective function
+    #   -generalize the algorithm to MaxCut problems over weighted graphs
+    #   -enable Pennylane jit-compilation to speed-up the qnode execution
 
     def __init__(self, device, optimizer, ansatz, alpha):
         self.device = device

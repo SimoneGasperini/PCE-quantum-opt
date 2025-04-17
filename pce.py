@@ -50,9 +50,10 @@ class MaxCutPCE(Base):
 
     def run_model(self, params, iters):
         for _ in range(iters):
-            params, objval = self.optimizer.step_and_cost(self.objective, params)
+            params, _ = self.optimizer.step_and_cost(self.objective, params)
         expvals = self.circuit(params)
         solution = {i: 1 if expvals[i] > 0 else 0 for i in self.graph.nodes}
+        objval = self.compute_maxcut(x=solution)
         return solution, objval
 
 

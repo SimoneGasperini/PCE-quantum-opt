@@ -4,6 +4,9 @@ import pylab as plt
 
 class Base:
 
+    def compute_maxcut(self, x):
+        return sum(-x[i] - x[j] + 2 * x[i] * x[j] for i, j in self.graph.edges)
+
     def show_result(self, sol, obj, ax):
         pos = nx.spring_layout(self.graph, seed=42)
         lab2col = {0: "tab:blue", 1: "tab:orange"}

@@ -38,11 +38,12 @@ class MaxCutQAOA(Base):
     def run_model(self, iters):
         params = np.random.uniform(size=(2, self.p), requires_grad=True)
         for _ in range(iters):
-            params, cost = self.optimizer.step_and_cost(self.circuit_expval, params)
+            params, _ = self.optimizer.step_and_cost(self.circuit_expval, params)
         probs = self.circuit_probs(params)
         bitstr = format(np.argmax(probs), f"0{self.num_qubits}b")
         solution = {i: int(bitstr[i]) for i in self.graph.nodes}
-        return solution, cost
+        objval = self.compute_maxcut(x=solution)
+        return solution, objval
 
 
 if __name__ == "__main__":
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     qaoa = MaxCutQAOA(device=dev, optimizer=opt, p=p)
 
     qaoa.build_model(graph=graph)
-    solution, cost = qaoa.run_model(iters=100)
+    solution, objval = qaoa.run_model(iters=100)
 
     fig, ax = plt.subplots()
-    qaoa.show_result(sol=solution, obj=cost, ax=ax)
+    qaoa.show_result(sol=solution, obj=objval, ax=ax)

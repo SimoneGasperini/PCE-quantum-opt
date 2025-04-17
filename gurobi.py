@@ -24,7 +24,7 @@ class MaxCutGurobi(Base):
             self.model.setParam("OutputFlag", 0)
         self.model.optimize()
         solution = {i: int(var.x) for i, var in self.vars.items()}
-        objval = self.model.objVal
+        objval = self.compute_maxcut(x=solution)
         return solution, objval
 
 

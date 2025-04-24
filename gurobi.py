@@ -24,8 +24,7 @@ class MaxCutGurobi(Base):
             self.model.setParam("OutputFlag", 0)
         self.model.optimize()
         solution = {i: int(var.x) for i, var in self.vars.items()}
-        objval = self.compute_maxcut(x=solution)
-        return solution, objval
+        return solution
 
 
 if __name__ == "__main__":
@@ -38,7 +37,8 @@ if __name__ == "__main__":
 
     grb = MaxCutGurobi()
     grb.build_model(graph=graph)
-    solution, objval = grb.run_model(verbose=False)
+    solution = grb.run_model(verbose=False)
 
-    fig, ax = plt.subplots()
-    grb.show_result(sol=solution, obj=objval, ax=ax)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    grb.show_result(sol=solution, ax=ax)
+    plt.show()

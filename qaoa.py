@@ -37,13 +37,17 @@ class MaxCutQAOA(Base):
 
     def run_model(self, iters):
         params = np.random.uniform(size=(2, self.p), requires_grad=True)
+        cost_history = []
+        obj_history = []
         for _ in range(iters):
-            params, _ = self.optimizer.step_and_cost(self.circuit_expval, params)
-        probs = self.circuit_probs(params)
-        bitstr = format(np.argmax(probs), f"0{self.num_qubits}b")
-        solution = {i: int(bitstr[i]) for i in self.graph.nodes}
-        objval = self.compute_maxcut(x=solution)
-        return solution, objval
+            params, cost = self.optimizer.step_and_cost(self.circuit_expval, params)
+            cost_history.append(cost)
+            probs = self.circuit_probs(params)
+            bitstr = format(np.argmax(probs), f"0{self.num_qubits}b")
+            solution = {i: int(bitstr[i]) for i in self.graph.nodes}
+            obj = self.compute_maxcut(x=solution)
+            obj_history.append(obj)
+        return solution, cost_history, obj_history
 
 
 if __name__ == "__main__":
@@ -60,7 +64,9 @@ if __name__ == "__main__":
     qaoa = MaxCutQAOA(device=dev, optimizer=opt, p=p)
 
     qaoa.build_model(graph=graph)
-    solution, objval = qaoa.run_model(iters=100)
+    solution, cost_history, obj_history = qaoa.run_model(iters=100)
 
-    fig, ax = plt.subplots()
-    qaoa.show_result(sol=solution, obj=objval, ax=ax)
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
+    qaoa.show_result(sol=solution, ax=ax1)
+    qaoa.show_optimization(cost_history=cost_history, obj_history=obj_history, ax=ax2)
+    plt.show()

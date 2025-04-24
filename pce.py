@@ -49,12 +49,16 @@ class MaxCutPCE(Base):
         self.objective = objective
 
     def run_model(self, params, iters):
+        cost_history = []
+        obj_history = []
         for _ in range(iters):
-            params, _ = self.optimizer.step_and_cost(self.objective, params)
-        expvals = self.circuit(params)
-        solution = {i: 1 if expvals[i] > 0 else 0 for i in self.graph.nodes}
-        objval = self.compute_maxcut(x=solution)
-        return solution, objval
+            params, cost = self.optimizer.step_and_cost(self.objective, params)
+            cost_history.append(cost)
+            expvals = self.circuit(params)
+            solution = {i: 1 if expvals[i] > 0 else 0 for i in self.graph.nodes}
+            obj = self.compute_maxcut(x=solution)
+            obj_history.append(obj)
+        return solution, cost_history, obj_history
 
 
 if __name__ == "__main__":
@@ -86,7 +90,9 @@ if __name__ == "__main__":
     pce.build_model(graph=graph, num_qubits=num_qubits, pauli_ops=pauli_ops)
 
     params = np.random.uniform(size=(num_layers, num_qubits), requires_grad=True)
-    solution, objval = pce.run_model(params=params, iters=100)
+    solution, cost_history, obj_history = pce.run_model(params=params, iters=100)
 
-    fig, ax = plt.subplots()
-    pce.show_result(sol=solution, obj=objval, ax=ax)
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
+    pce.show_result(sol=solution, ax=ax1)
+    pce.show_optimization(cost_history=cost_history, obj_history=obj_history, ax=ax2)
+    plt.show()

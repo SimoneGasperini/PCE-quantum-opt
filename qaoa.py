@@ -1,5 +1,5 @@
 import pennylane as qml
-from pennylane import numpy as np
+import pennylane.numpy as pnp
 from base import Base
 
 
@@ -36,18 +36,17 @@ class MaxCutQAOA(Base):
         self.circuit_probs = circuit_probs
 
     def run_model(self, iters):
-        params = np.random.uniform(size=(2, self.p), requires_grad=True)
-        cost_history = []
-        obj_history = []
-        for _ in range(iters):
-            params, cost = self.optimizer.step_and_cost(self.circuit_expval, params)
-            cost_history.append(cost)
+        params = pnp.random.uniform(size=(2, self.p), requires_grad=True)
+        loss_hist = pnp.empty(iters)
+        obj_hist = pnp.empty(iters)
+        for i in range(iters):
+            params, loss = self.optimizer.step_and_cost(self.circuit_expval, params)
+            loss_hist[i] = loss
             probs = self.circuit_probs(params)
-            bitstr = format(np.argmax(probs), f"0{self.num_qubits}b")
+            bitstr = format(pnp.argmax(probs), f"0{self.num_qubits}b")
             solution = {i: int(bitstr[i]) for i in self.graph.nodes}
-            obj = self.compute_maxcut(x=solution)
-            obj_history.append(obj)
-        return solution, cost_history, obj_history
+            obj_hist[i] = self.compute_maxcut(x=solution)
+        return solution, loss_hist, obj_hist
 
 
 if __name__ == "__main__":
@@ -64,9 +63,9 @@ if __name__ == "__main__":
     qaoa = MaxCutQAOA(device=dev, optimizer=opt, p=p)
 
     qaoa.build_model(graph=graph)
-    solution, cost_history, obj_history = qaoa.run_model(iters=100)
+    solution, loss_hist, obj_hist = qaoa.run_model(iters=100)
 
     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
     qaoa.show_result(sol=solution, ax=ax1)
-    qaoa.show_optimization(cost_history=cost_history, obj_history=obj_history, ax=ax2)
+    qaoa.show_optimization(loss_hist=loss_hist, obj_hist=obj_hist, ax=ax2)
     plt.show()

@@ -14,8 +14,8 @@ class Base:
         obj = self.compute_maxcut(x=sol)
         ax.set_title(f"objective = {obj}")
 
-    def show_optimization(self, cost_history, obj_history, ax):
-        ax.plot(cost_history, color="tab:red", label="cost")
-        ax.plot(obj_history, color="tab:green", label="objective")
+    def show_optimization(self, loss_hist, obj_hist, ax):
+        ax.plot(loss_hist, color="tab:red", label="loss")
+        ax.plot(obj_hist, color="tab:green", label="objective")
         ax.set_xlabel("iteration")
         ax.legend()

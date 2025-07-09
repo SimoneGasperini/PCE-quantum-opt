@@ -1,6 +1,9 @@
 import pennylane as qml
 import jax, optax
 import numpy as np
+
+# CODE for distribution:
+
 import pennylane.numpy as pnp
 import jax.numpy as jnp
 from itertools import combinations, product
@@ -8,9 +11,6 @@ from base import Base
 
 
 class MaxCutPCE(Base):
-    # TODO:
-    #   -introduce regularization term in the objective function
-    #   -generalize the algorithm to MaxCut problems over weighted graphs
 
     def __init__(self, device, optimizer, ansatz, alpha, jit=True):
         self.device = device
@@ -31,11 +31,13 @@ class MaxCutPCE(Base):
                     pauli_op[wire] = qml_op(wire)
                 pauli_ops.append(qml.prod(*pauli_op))
         return pauli_ops
+    
+    
 
     def build_model(self, graph, num_qubits, pauli_ops):
         self.graph = graph
         self.num_qubits = num_qubits
-
+        
         def circuit(params):
             self.ansatz(params)
             return [qml.expval(op) for op in pauli_ops]
@@ -47,9 +49,10 @@ class MaxCutPCE(Base):
             @jax.jit
             def loss_func(params):
                 expvals = circuit(params)
+                print("Number of variables in circuit:", len(expvals))
                 return jnp.array(
                     [
-                        jnp.tanh(self.alpha * expvals[i])
+                        self.graph[i][j].get("weight", 1.0) * jnp.tanh(self.alpha * expvals[i])
                         * jnp.tanh(self.alpha * expvals[j])
                         for i, j in self.graph.edges
                     ]
@@ -92,8 +95,15 @@ class MaxCutPCE(Base):
 
             def loss_func(params):
                 expvals = circuit(params)
+                for i, j in self.graph.edges:
+                    w = self.graph[i][j].get("weight", 1.0) 
+                    vi = expvals[i]
+                    vj = expvals[j]
+                    tanh_i = pnp.tanh(self.alpha * vi)
+                    tanh_j = pnp.tanh(self.alpha * vj)
+                    contrib = w * tanh_i * tanh_j
                 return pnp.sum(
-                    pnp.tanh(self.alpha * expvals[i])
+                    self.graph[i][j].get("weight", 1.0) * pnp.tanh(self.alpha * expvals[i])
                     * pnp.tanh(self.alpha * expvals[j])
                     for i, j in self.graph.edges
                 )

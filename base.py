@@ -6,7 +6,7 @@ class Base:
     def compute_maxcut(self, x):
         total = 0
         for i, j in self.graph.edges:
-            w = self.graph[i][j].get("weight", 1.0) 
+            w = self.graph[i][j].get("weight", 1.0)
             val = w * (x[i] + x[j] - 2 * x[i] * x[j])
             total += val
         print(f"Total MaxCut Value = {total}")
@@ -18,10 +18,10 @@ class Base:
         node_color = [lab2col[sol[i]] for i in self.graph.nodes]
         nx.draw(self.graph, pos=pos, node_color=node_color, with_labels=True, ax=ax)
         obj = self.compute_maxcut(x=sol)
-        ax.set_title(f"objective = {obj}")
+        ax.set_title(f"maxcut = {obj}")
 
     def show_optimization(self, loss_hist, obj_hist, ax):
         ax.plot(loss_hist, color="tab:red", label="loss")
-        ax.plot(obj_hist, color="tab:green", label="objective")
+        ax.plot(obj_hist, color="tab:green", label="maxcut")
         ax.set_xlabel("iteration")
         ax.legend()

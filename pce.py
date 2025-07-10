@@ -1,16 +1,15 @@
 import pennylane as qml
-import jax, optax
+from pennylane import math
 import numpy as np
-
-# CODE for distribution:
-
-import pennylane.numpy as pnp
-import jax.numpy as jnp
+import jax, optax
 from itertools import combinations, product
+from functools import partial
 from base import Base
 
 
 class MaxCutPCE(Base):
+    # TODO:
+    #   - introduce regularization term in the loss function
 
     def __init__(self, device, optimizer, ansatz, alpha, jit=True):
         self.device = device
@@ -31,103 +30,76 @@ class MaxCutPCE(Base):
                     pauli_op[wire] = qml_op(wire)
                 pauli_ops.append(qml.prod(*pauli_op))
         return pauli_ops
-    
-    
 
-    def build_model(self, graph, num_qubits, pauli_ops):
-        self.graph = graph
-        self.num_qubits = num_qubits
-        
+    def build_model(self, graph, pauli_ops):
+
+        @qml.qnode(device=self.device)
         def circuit(params):
             self.ansatz(params)
             return [qml.expval(op) for op in pauli_ops]
 
+        def loss(params):
+            expvals = circuit(params)
+            return sum(
+                edge.get("weight", 1)
+                * math.tanh(self.alpha * expvals[i])
+                * math.tanh(self.alpha * expvals[j])
+                for i, j, edge in graph.edges(data=True)
+            )
+
         if self.jit:
-
-            circuit = qml.QNode(circuit, device=self.device, interface="jax")
-
-            @jax.jit
-            def loss_func(params):
-                expvals = circuit(params)
-                print("Number of variables in circuit:", len(expvals))
-                return jnp.array(
-                    [
-                        self.graph[i][j].get("weight", 1.0) * jnp.tanh(self.alpha * expvals[i])
-                        * jnp.tanh(self.alpha * expvals[j])
-                        for i, j in self.graph.edges
-                    ]
-                ).sum()
 
             @jax.jit
             def update_step(i, args):
                 params, opt_state, loss_hist, obj_hist = args
-                loss, grad = jax.value_and_grad(loss_func)(params)
-                loss_hist = loss_hist.at[i].set(loss)
+                value, grad = jax.value_and_grad(jax.jit(loss))(params)
+                loss_hist = loss_hist.at[i].set(value)
                 updates, opt_state = self.optimizer.update(grad, opt_state)
                 params = optax.apply_updates(params, updates)
                 expvals = circuit(params)
                 solution = {
-                    i: jnp.where(expvals[i] > 0, 1, 0) for i in self.graph.nodes
+                    i: jax.numpy.where(expvals[i] > 0, 1, 0) for i in graph.nodes
                 }
                 obj = self.compute_maxcut(x=solution)
                 obj_hist = obj_hist.at[i].set(obj)
                 return params, opt_state, loss_hist, obj_hist
 
+            @partial(jax.jit, static_argnums=(1,))
             def optimization(params, iters):
                 opt_state = self.optimizer.init(params)
-                loss_hist = jnp.empty(iters)
-                obj_hist = jnp.empty(iters)
+                loss_hist = jax.numpy.empty(iters)
+                obj_hist = jax.numpy.empty(iters)
                 args = (params, opt_state, loss_hist, obj_hist)
                 params, opt_state, loss_hist, obj_hist = jax.lax.fori_loop(
                     0, iters, update_step, args
                 )
                 expvals = circuit(params)
                 solution = {
-                    i: jnp.where(expvals[i] > 0, 1, 0) for i in self.graph.nodes
+                    i: jax.numpy.where(expvals[i] > 0, 1, 0) for i in graph.nodes
                 }
                 return solution, loss_hist, obj_hist
 
-            optimization = jax.jit(optimization, static_argnums=(1,))
-
         else:
-
-            circuit = qml.QNode(circuit, device=self.device)
-
-            def loss_func(params):
-                expvals = circuit(params)
-                for i, j in self.graph.edges:
-                    w = self.graph[i][j].get("weight", 1.0) 
-                    vi = expvals[i]
-                    vj = expvals[j]
-                    tanh_i = pnp.tanh(self.alpha * vi)
-                    tanh_j = pnp.tanh(self.alpha * vj)
-                    contrib = w * tanh_i * tanh_j
-                return pnp.sum(
-                    self.graph[i][j].get("weight", 1.0) * pnp.tanh(self.alpha * expvals[i])
-                    * pnp.tanh(self.alpha * expvals[j])
-                    for i, j in self.graph.edges
-                )
 
             def optimization(params, iters):
                 loss_hist = np.empty(iters)
                 obj_hist = np.empty(iters)
                 for i in range(iters):
-                    params, loss = self.optimizer.step_and_cost(loss_func, params)
-                    loss_hist[i] = loss
+                    params, value = self.optimizer.step_and_cost(loss, params)
+                    loss_hist[i] = value
                     expvals = circuit(params)
-                    solution = {i: 1 if expvals[i] > 0 else 0 for i in self.graph.nodes}
+                    solution = {i: 1 if expvals[i] > 0 else 0 for i in graph.nodes}
                     obj_hist[i] = self.compute_maxcut(x=solution)
                 return solution, loss_hist, obj_hist
 
+        self.graph = graph
         self.optimization = optimization
 
     def run_model(self, params, iters):
-        params = jnp.array(params) if self.jit else pnp.array(params)
+        params = jax.numpy.array(params) if self.jit else qml.numpy.array(params)
         solution, loss_hist, obj_hist = self.optimization(params=params, iters=iters)
         if self.jit:
             solution = {i: solution[i].item() for i in self.graph.nodes}
-        loss_hist = np.array(loss_hist)
-        obj_hist = np.array(obj_hist)
         return solution, loss_hist, obj_hist
 
 
@@ -159,7 +131,7 @@ if __name__ == "__main__":
     pce = MaxCutPCE(device=dev, optimizer=opt, ansatz=ansatz, alpha=alpha, jit=True)
 
     pauli_ops = MaxCutPCE.get_pauli_ops(n=num_qubits, k=k_body_corr, bases=["X"])
-    pce.build_model(graph=graph, num_qubits=num_qubits, pauli_ops=pauli_ops)
+    pce.build_model(graph=graph, pauli_ops=pauli_ops)
 
     params = np.random.uniform(size=(num_layers, num_qubits))
     solution, loss_hist, obj_hist = pce.run_model(params=params, iters=100)

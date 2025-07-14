@@ -9,7 +9,6 @@ class Base:
             w = self.graph[i][j].get("weight", 1.0)
             val = w * (x[i] + x[j] - 2 * x[i] * x[j])
             total += val
-        print(f"Total MaxCut Value = {total}")
         return total
 
     def show_result(self, sol, ax):

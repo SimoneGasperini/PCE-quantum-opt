@@ -13,7 +13,7 @@ class MaxCutGurobi(Base):
         for i in self.graph.nodes:
             self.vars[i] = self.model.addVar(vtype=gp.GRB.BINARY)
         obj = sum(
-            edge.get("weight", 1) * (1 - self.vars[i] * self.vars[j])
+            edge.get("weight", 1) * (self.vars[i] + self.vars[j] - 2 * self.vars[i] * self.vars[j])
             for i, j, edge in graph.edges(data=True)
         )
         self.model.setObjective(obj, sense=gp.GRB.MAXIMIZE)

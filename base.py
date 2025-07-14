@@ -4,12 +4,11 @@ import networkx as nx
 class Base:
 
     def compute_maxcut(self, x):
-        total = 0
-        for i, j in self.graph.edges:
-            w = self.graph[i][j].get("weight", 1.0)
-            val = w * (x[i] + x[j] - 2 * x[i] * x[j])
-            total += val
-        return total
+        # binary vars in {0,1}
+        return sum(
+            edge.get("weight", 1.0) * (x[i] + x[j] - 2 * x[i] * x[j])
+            for i, j, edge in self.graph.edges(data=True)
+        )
 
     def show_result(self, sol, ax):
         pos = nx.spring_layout(self.graph, seed=42)

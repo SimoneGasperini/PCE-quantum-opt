@@ -1,7 +1,6 @@
 import gurobipy as gp
 from base import Base
 
-
 class MaxCutGurobi(Base):
 
     def __init__(self):
@@ -13,11 +12,11 @@ class MaxCutGurobi(Base):
         self.vars = {}
         for i in self.graph.nodes:
             self.vars[i] = self.model.addVar(vtype=gp.GRB.BINARY)
-        self.obj = sum(
-            -self.vars[i] - self.vars[j] + 2 * self.vars[i] * self.vars[j]
-            for i, j in graph.edges
+        obj = sum(
+            edge.get("weight", 1) * (self.vars[i] + self.vars[j] - 2 * self.vars[i] * self.vars[j])
+            for i, j, edge in graph.edges(data=True)
         )
-        self.model.setObjective(self.obj, sense=gp.GRB.MINIMIZE)
+        self.model.setObjective(obj, sense=gp.GRB.MAXIMIZE)
 
     def run_model(self, verbose):
         if not verbose:

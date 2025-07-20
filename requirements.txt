@@ -1,7 +1,7 @@
-networkx==3.4.2
-pennylane==0.40.0
-pennyLane-lightning==0.40.0
-jax==0.5.3
-optax==0.2.4
-matplotlib===3.10.3
-gurobipy==12.0.2
+networkx==3.5
+pennylane==0.42.0
+pennyLane-lightning==0.42.0
+jax==0.6.2
+optax==0.2.5
+matplotlib==3.10.3
+gurobipy==12.0.3
